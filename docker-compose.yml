@@ -1,0 +1,35 @@
+version: '3'
+
+services:
+  vectorstore:
+    build:
+      context: ./vectorstore-service
+    environment:
+      POSTGRES_USER: 'root'
+      POSTGRES_PASSWORD: 'password'
+      POSTGRES_HOST_AUTH_METHOD: 'trust'
+    ports:
+      - "5433:5432"
+
+  documentparse:
+    build:
+      context: ./document-parse-service
+    environment:
+      DB_USERNAME: 'root'
+      DB_PASSWORD: 'password'
+      DB_HOST: 'vectorstore'
+      DB_PORT: '5432'
+      EMBEDDING_DIMENSION: 384
+      LOGPATH: "/logpath"
+    volumes:
+      - ./logpath:/logpath
+    command: python write_db.py
+
+  embedding-service:
+    build:
+      context: ./embedding-service
+    depends_on:
+      documentparse: 
+        condition: service_completed_successfully
+    
+    
