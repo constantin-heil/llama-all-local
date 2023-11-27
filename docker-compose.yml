@@ -5,20 +5,24 @@ services:
     build:
       context: ./vectorstore-service
     environment:
-      POSTGRES_USER: 'root'
-      POSTGRES_PASSWORD: 'password'
-      POSTGRES_HOST_AUTH_METHOD: 'trust'
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: postgres
     ports:
       - "5433:5432"
 
   documentparse:
     build:
       context: ./document-parse-service
+    depends_on:
+      - embedding-service
     environment:
-      DB_USERNAME: 'root'
-      DB_PASSWORD: 'password'
-      DB_HOST: 'vectorstore'
-      DB_PORT: '5432'
+      DB_USERNAME: postgres
+      DB_PASSWORD: password
+      DB_HOST: vectorstore
+      DB_PORT: 5432
+      EMBEDDINGSERVICE_HOST: embedding-service
+      EMBEDDINGSERVICE_PORT: 5000
       EMBEDDING_DIMENSION: 384
       LOGPATH: "/logpath"
     volumes:
@@ -28,8 +32,26 @@ services:
   embedding-service:
     build:
       context: ./embedding-service
+
+  chat-service:
+    build:
+      context: ./chat-service
     depends_on:
-      documentparse: 
+      documentparse:
         condition: service_completed_successfully
+    environment:
+      DB_USERNAME: postgres
+      DB_PASSWORD: password
+      DB_HOST: vectorstore
+      DB_PORT: '5432'
+      EMBEDDINGSERVICE_HOST: embedding-service
+      EMBEDDINGSERVICE_PORT: '5000'
+      EMBEDDING_DIMENSION: 384
+      LOGPATH: "/logpath"
+    volumes:
+      - ./logpath:/logpath
+    ports:
+      - "5001:5001"
+
     
     

@@ -2,8 +2,9 @@ from transformers import AutoTokenizer, AutoModel
 import torch
 from typing import Callable, Union, Iterable
 import argparse
+from os import getenv
 
-MODELNAME = "sentence-transformers/all-MiniLM-L6-v2"
+MODELNAME = getenv("MODELNAME", "sentence-transformers/all-MiniLM-L6-v2")
 
 def get_args():
     ap = argparse.ArgumentParser(

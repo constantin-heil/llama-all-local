@@ -1,8 +1,20 @@
 from flask import Flask, request, jsonify
 from model_embeddings import MODELNAME, mean_pooling, embeddingModel
+from os import getenv
+from typing import List
+import os
+import logging
+
+SERVERINTERFACE = getenv("SERVERINTERFACE", "0.0.0.0")
+SERVERPORT = getenv("SERVERPORT", "5000")
+LOGGINGPATH = getenv("LOGGINGPATH", "/logpath")
+
+logging.basicConfig(
+    filename = os.path.join(LOGGINGPATH, "log.log"),
+    level = logging.DEBUG
+)
 
 app = Flask(__name__)
-
 em = embeddingModel(MODELNAME, mean_pooling)
 
 @app.route('/getembeddings', methods = ["POST"])
@@ -28,5 +40,6 @@ def get_embeddings():
         ), 500
     
 if __name__ == "__main__":
-    app.run(host = "0.0.0.0")
+    app.run(host = SERVERINTERFACE, 
+            port = SERVERPORT)
         

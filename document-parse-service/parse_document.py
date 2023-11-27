@@ -2,11 +2,12 @@ import spacy
 from pathlib import Path
 from typing import List
 import requests
+from requests.exceptions import ConnectionError
 import logging
 import json
 
 logging.basicConfig(
-    filename = "../logpath/documentparse.log",
+    filename = "../logpath/log.log",
     level = logging.DEBUG
 )
 
@@ -50,7 +51,7 @@ class embeddingRequester:
         self.hostname, self.port = hostname, port
 
     def get_embeddings(self, 
-                       text: List[str]) -> dict:
+                       text: List[str]) -> List[List[str]]:
         text = [text] if isinstance(text, str) else text
         
         embeddings = []
@@ -60,13 +61,19 @@ class embeddingRequester:
                 "text": chunk
             }
 
-            res = requests.post(
-                "http://" + self.hostname + ":" + self.port + "/getembeddings",
-                json = req,
-                headers = {'Content-Type': "application/json"}
-            )
+            while True:
+                try:
+                    res = requests.post(
+                        "http://" + self.hostname + ":" + self.port + "/getembeddings",
+                        json = req,
+                        headers = {'Content-Type': "application/json"}
+                    )
+                except ConnectionError:
+                    continue
 
-            if res.status_code != "200":
+                break
+
+            if res.status_code != 200:
                 logging.error("EMBEDDINGREQUESTER: Could not get embeddings")
 
             output = json.loads(res.content)
