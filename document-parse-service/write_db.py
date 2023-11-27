@@ -15,6 +15,7 @@ EMBEDDING_DIMENSION = getenv("EMBEDDING_DIMENSION", 384)
 EMBEDDINGSERVICE_HOST = getenv("EMBEDDINGSERVICE_HOST", "localhost")
 EMBEDDINGSERVICE_PORT = getenv("EMBEDDINGSERVICE_PORT", "5000")
 LOGPATH = getenv("LOGPATH", "../logpath")
+IS_TESTMODE = int(getenv("IS_TESTMODE", "0"))
 
 logging.basicConfig(
     filename = os.path.join(LOGPATH, "log.log"),
@@ -64,8 +65,14 @@ if __name__ == "__main__":
 
     logging.debug("getting text chunks")
     chunks = [chunk for chunk in chunker]
+    if IS_TESTMODE:
+        chunks = chunks[:5]
+
     logging.debug(f"getting embeddings for {len(chunks)} chunks")
     embeddings = requester.get_embeddings(chunks)
+    if IS_TESTMODE:
+        embeddings = [emb[:5] for emb in embeddings]
+        
     logging.debug("have embeddings")
 
     with Session(engine) as session:

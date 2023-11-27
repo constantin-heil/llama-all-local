@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 import sqlalchemy
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
-from typing import List
+from typing import List, Optional
 from os import getenv
 import os
 import logging
@@ -18,6 +18,7 @@ EMBEDDING_DIMENSION = getenv("EMBEDDING_DIMENSION", 384)
 EMBEDDINGSERVICE_HOST = getenv("EMBEDDINGSERVICE_HOST", "localhost")
 EMBEDDINGSERVICE_PORT = getenv("EMBEDDINGSERVICE_PORT", "5000")
 LOGPATH = getenv("LOGPATH", "../logpath")
+IS_TESTMODE = int(getenv("IS_TESTMODE", "0"))
 
 MODELNAME = "TheBloke/OpenHermes-2.5-Mistral-7B-GGUF"
 FILENAME = "openhermes-2.5-mistral-7b.Q4_K_M.gguf"
@@ -50,7 +51,7 @@ class embeddingRequester:
                 headers = {'Content-Type': "application/json"}
             )
 
-            if res.status_code != "200":
+            if res.status_code != 200:
                 logging.error("EMBEDDINGREQUESTER: Could not get embeddings")
 
             output = json.loads(res.content)
@@ -60,14 +61,18 @@ class embeddingRequester:
 
         return embeddings
 
-def text_lookup(text: str,
+def text_lookup(qtext: str,
                 embeddingrequester: embeddingRequester,
                 engine: sqlalchemy.engine,
-                top_n: int = 5):
+                top_n: Optional[int] = 5):
     """
     Send a single text to embedding service and obtain top n matches
     """
-    embs = embeddingrequester.get_embeddings(text)
+    embs = embeddingrequester.get_embeddings(qtext)
+    if IS_TESTMODE:
+        embs = [emb[:5] for emb in embs]
+
+    logging.debug(f"Got embeddings {embs} for {qtext}")
     with engine.connect() as con:
         res = con.execute(
             text("select rawtext from embeddings_table order by embedding <=> :qemb limit :topn ;"),
@@ -79,14 +84,13 @@ def text_lookup(text: str,
     return bullet_list
 
 def get_prompt(userquery: str,
-               semantic_list: str,
-               systemmessage: str = "") -> str:
-    imperative1 = "You will answer the following question only if you know the answer, otherwise say you do not know\n"
+               semantic_list: str) -> str:
+    imperative1 = "<|im_start|>system\nYou will answer the following question only if you know the answer, otherwise say you do not know\n"
     imperative2 = "You will put strong emphasis on the information in the following list, each starting with '-'\n"
-    systemmessage = systemmessage + '\n'
-    userquery = userquery + '\n'
+    semantic_list = semantic_list + "\n<|im_end|>\n"
+    userquery = "<|im_start|>user\n" + userquery + '\n<|im_start|>assistant'
 
-    return systemmessage + imperative1 + userquery + imperative2 + semantic_list
+    return imperative1 + imperative2 + semantic_list + userquery
     
 mod = AutoModelForCausalLM.from_pretrained(
     MODELNAME, 
@@ -130,13 +134,13 @@ def inputandresponse():
         ), 500
     
     inputtext = payload["text"]
-    logging.debug("Received TEXT: {inputtext}")
+    logging.debug(f"Received TEXT: {inputtext}")
     bullet_list = text_lookup(
         inputtext,
         em,
         vectorstore_engine
         )
-    logging.debug("Got lookup for: {inputtext}")
+    logging.debug(f"Got lookup for: {inputtext}")
     final_prompt = get_prompt(
         userquery = inputtext,
         semantic_list = bullet_list
@@ -144,7 +148,9 @@ def inputandresponse():
 
     output = mod(final_prompt)
     return jsonify(
-        response = output
+        response = output,
+        input = inputtext, 
+        fullprompt = final_prompt
     ), 200
 
 if __name__ == "__main__":
