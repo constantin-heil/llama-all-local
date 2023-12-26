@@ -25,6 +25,7 @@ services:
       EMBEDDINGSERVICE_PORT: 5000
       EMBEDDING_DIMENSION: 384
       LOGPATH: "/logpath"
+      IS_TESTMODE: 1
     volumes:
       - ./logpath:/logpath
     command: python write_db.py
@@ -48,6 +49,8 @@ services:
       EMBEDDINGSERVICE_PORT: '5000'
       EMBEDDING_DIMENSION: 384
       LOGPATH: "/logpath"
+      HG_FILE: ${HG_FILE}
+    command: "huggingface-cli download ${HG_REPO} ${HG_FILE} --local-dir . && python server.py"
     volumes:
       - ./logpath:/logpath
     ports:

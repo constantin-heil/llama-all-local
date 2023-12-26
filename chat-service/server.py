@@ -8,7 +8,8 @@ import os
 import logging
 import requests
 import json
-from ctransformers import AutoModelForCausalLM
+from llama_cpp import Llama
+from functools import partial
 
 DB_USERNAME = getenv("DB_USERNAME", "root")
 DB_PASSWORD = getenv("DB_PASSWORD", "password")
@@ -19,9 +20,7 @@ EMBEDDINGSERVICE_HOST = getenv("EMBEDDINGSERVICE_HOST", "localhost")
 EMBEDDINGSERVICE_PORT = getenv("EMBEDDINGSERVICE_PORT", "5000")
 LOGPATH = getenv("LOGPATH", "../logpath")
 IS_TESTMODE = int(getenv("IS_TESTMODE", "0"))
-
-MODELNAME = "TheBloke/OpenHermes-2.5-Mistral-7B-GGUF"
-FILENAME = "openhermes-2.5-mistral-7b.Q4_K_M.gguf"
+MODELFILE = getenv("HG_FILE")
 
 logging.basicConfig(
     filename = os.path.join(LOGPATH, "log.log"),
@@ -91,13 +90,20 @@ def get_prompt(userquery: str,
     userquery = "<|im_start|>user\n" + userquery + '\n<|im_start|>assistant'
 
     return imperative1 + imperative2 + semantic_list + userquery
-    
-mod = AutoModelForCausalLM.from_pretrained(
-    MODELNAME, 
-    model_file = FILENAME,
-    model_type = "mistral",
-    gpu_layers = 0
+
+def call_llm(llm, prompt: str, max_tokens: int, stop: List[str]) -> str:
+    return llm(
+        prompt, max_tokens, stop, echo = False
     )
+    
+llm = Llama(
+    model_path = MODELFILE,
+    n_ctx = 2048,
+    n_threads = 4,
+    n_gpu_layers = 0
+)
+
+mod = partial(call_llm, llm = llm, max_tokens = 512, stop = ["</s>"])
 
 em = embeddingRequester(
     EMBEDDINGSERVICE_HOST,
@@ -146,7 +152,7 @@ def inputandresponse():
         semantic_list = bullet_list
     )
 
-    output = mod(final_prompt)
+    output = mod(prompt = final_prompt)
     return jsonify(
         response = output,
         input = inputtext, 
@@ -154,6 +160,7 @@ def inputandresponse():
     ), 200
 
 if __name__ == "__main__":
+    logging.debug("Running webserver")
     app.run(
         host = '0.0.0.0',
         port = 5001
