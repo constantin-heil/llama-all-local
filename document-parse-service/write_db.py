@@ -70,8 +70,6 @@ if __name__ == "__main__":
 
     logging.debug(f"getting embeddings for {len(chunks)} chunks")
     embeddings = requester.get_embeddings(chunks)
-    if IS_TESTMODE:
-        embeddings = [emb[:5] for emb in embeddings]
         
     logging.debug("have embeddings")
 
