@@ -37,6 +37,9 @@ services:
   chat-service:
     build:
       context: ./chat-service
+      args:
+        - HG_FILE=${HG_FILE}
+        - HG_REPO=${HG_REPO}
     depends_on:
       documentparse:
         condition: service_completed_successfully
@@ -50,7 +53,6 @@ services:
       EMBEDDING_DIMENSION: 384
       LOGPATH: "/logpath"
       HG_FILE: ${HG_FILE}
-    command: "huggingface-cli download ${HG_REPO} ${HG_FILE} --local-dir . && python server.py"
     volumes:
       - ./logpath:/logpath
     ports:

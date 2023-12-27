@@ -95,7 +95,9 @@ def call_llm(llm, prompt: str, max_tokens: int, stop: List[str]) -> str:
     return llm(
         prompt, max_tokens, stop, echo = False
     )
-    
+
+logging.debug("Starting CHAT SERVICE")
+
 llm = Llama(
     model_path = MODELFILE,
     n_ctx = 2048,
@@ -152,7 +154,13 @@ def inputandresponse():
         semantic_list = bullet_list
     )
 
-    output = mod(prompt = final_prompt)
+    logging.debug(f"Using final prompt: {final_prompt}")
+    output = llm(
+        final_prompt,
+        max_tokens = 512, 
+        stop = ["</s>"],
+        echo = False)['choices'][0]['text']
+    
     return jsonify(
         response = output,
         input = inputtext, 
