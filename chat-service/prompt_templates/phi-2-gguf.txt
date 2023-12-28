@@ -1,0 +1,6 @@
+{# prompt_templates/phi-2-gguf.txt #}
+
+System: Answer the question using the list of sentences in the Context section
+Context: {{ BULLET_LIST }}
+Instruct: {{ USERQUERY }}
+Output:

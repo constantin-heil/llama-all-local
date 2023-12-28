@@ -9,6 +9,8 @@ ENV HG_FILE=${HG_FILE}
 COPY requirements.txt .
 COPY server.py .
 
+COPY prompt_templates /prompt_templates
+
 RUN mkdir /logpath
 RUN mkdir /historydb
 

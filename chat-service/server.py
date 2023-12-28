@@ -8,6 +8,7 @@ import os
 import logging
 import requests
 import json
+import jinja2
 from llama_cpp import Llama
 from functools import partial
 
@@ -18,9 +19,10 @@ DB_PORT = getenv("DB_PORT", "5433")
 EMBEDDING_DIMENSION = getenv("EMBEDDING_DIMENSION", 384)
 EMBEDDINGSERVICE_HOST = getenv("EMBEDDINGSERVICE_HOST", "localhost")
 EMBEDDINGSERVICE_PORT = getenv("EMBEDDINGSERVICE_PORT", "5000")
-LOGPATH = getenv("LOGPATH", "../logpath")
+LOGPATH = getenv("LOGPATH", "/logpath")
 IS_TESTMODE = int(getenv("IS_TESTMODE", "0"))
 MODELFILE = getenv("HG_FILE")
+PROMPT_TEMPLATE = getenv("PROMPT_TEMPLATE", "prompt_templates/phi-2-gguf.txt")
 
 logging.basicConfig(
     filename = os.path.join(LOGPATH, "log.log"),
@@ -67,15 +69,13 @@ def text_lookup(qtext: str,
     """
     Send a single text to embedding service and obtain top n matches
     """
-    embs = embeddingrequester.get_embeddings(qtext)
-    if IS_TESTMODE:
-        embs = [emb[:5] for emb in embs]
+    embs = embeddingrequester.get_embeddings(qtext)[0]
 
     logging.debug(f"Got embeddings {embs} for {qtext}")
     with engine.connect() as con:
         res = con.execute(
             text("select rawtext from embeddings_table order by embedding <=> :qemb limit :topn ;"),
-            parameters = {'qemb': str(embs[0]), 'topn': top_n}
+            parameters = {'qemb': str(embs), 'topn': top_n}
         )
 
     reslist = ["- " + r[0] for r in res]
@@ -83,13 +83,16 @@ def text_lookup(qtext: str,
     return bullet_list
 
 def get_prompt(userquery: str,
-               semantic_list: str) -> str:
-    imperative1 = "<|im_start|>system\nYou will answer the following question only if you know the answer, otherwise say you do not know\n"
-    imperative2 = "You will put strong emphasis on the information in the following list, each starting with '-'\n"
-    semantic_list = semantic_list + "\n<|im_end|>\n"
-    userquery = "<|im_start|>user\n" + userquery + '\n<|im_start|>assistant'
+               bullet_list: str) -> str:
+    envpath, templatefn = PROMPT_TEMPLATE.split("/")
+    env = jinja2.Environment(loader = jinja2.FileSystemLoader(envpath))
+    template = env.get_template(templatefn)
 
-    return imperative1 + imperative2 + semantic_list + userquery
+    return template.render(
+        USERQUERY = userquery, 
+        BULLET_LIST = bullet_list
+        )
+    
 
 def call_llm(llm, prompt: str, max_tokens: int, stop: List[str]) -> str:
     return llm(
@@ -151,7 +154,7 @@ def inputandresponse():
     logging.debug(f"Got lookup for: {inputtext}")
     final_prompt = get_prompt(
         userquery = inputtext,
-        semantic_list = bullet_list
+        bullet_list = bullet_list
     )
 
     logging.debug(f"Using final prompt: {final_prompt}")
