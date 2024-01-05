@@ -74,11 +74,12 @@ def text_lookup(qtext: str,
     logging.debug(f"Got embeddings {embs} for {qtext}")
     with engine.connect() as con:
         res = con.execute(
-            text("select rawtext from embeddings_table order by embedding <=> :qemb limit :topn ;"),
+            text("select rawtext from embeddings_table order by 1 - (embedding <=> :qemb) desc limit :topn ;"),
             parameters = {'qemb': str(embs), 'topn': top_n}
         )
 
-    reslist = ["- " + r[0] for r in res]
+    logging.debug(f"Got lookup {res}")
+    reslist = ["\n- " + r[0] for r in res]
     bullet_list = "\n".join(reslist)
     return bullet_list
 
@@ -146,16 +147,18 @@ def inputandresponse():
     
     inputtext = payload["text"]
     logging.debug(f"Received TEXT: {inputtext}")
+    
     bullet_list = text_lookup(
         inputtext,
         em,
         vectorstore_engine
         )
-    logging.debug(f"Got lookup for: {inputtext}")
+    
+    logging.debug(f"Got bullet_list {bullet_list}")
     final_prompt = get_prompt(
         userquery = inputtext,
         bullet_list = bullet_list
-    )
+        )
 
     logging.debug(f"Using final prompt: {final_prompt}")
     output = llm(
