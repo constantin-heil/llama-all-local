@@ -1,0 +1,8 @@
+{# prompt_templates/openhermes-mistral-7b.txt #}
+
+<|im_start|>system
+Answer the question using only the information in the bullet point in the context section<|im_end|>
+<|im_start|>context
+{{ BULLET_LIST }} <|im_end|>
+<|im_start|>user
+{{ USERQUERY }} <|im_end|>

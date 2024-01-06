@@ -53,6 +53,7 @@ services:
       EMBEDDING_DIMENSION: 384
       LOGPATH: "/logpath"
       HG_FILE: ${HG_FILE}
+      PROMPT_TEMPLATE: "prompt_templates/openhermes-mistral-7b.txt"
     volumes:
       - ./logpath:/logpath
     ports:
